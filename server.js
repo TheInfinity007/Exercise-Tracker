@@ -63,7 +63,8 @@ app.post('/api/exercise/add', (req, res)=>{
         res.redirect('/');
       }
       console.log("New Exercise Created", exercise);
-      user.exercises.push(exercise);
+      user.logs.push(exercise);
+      user.count = user.logs.length;
       user.save();
       res.json({
         _id: user._id,
@@ -76,7 +77,32 @@ app.post('/api/exercise/add', (req, res)=>{
   })
 })
 
-
+app.get('/api/exercise/log', (req, res)=>{
+  let userId = req.query.userId;
+  console.log(userId);
+  User.findById(userId).populate("logs").exec((err, user)=>{
+    if(err){
+      console.error(err);
+      return res.redirect('/');
+    }
+    if(!user){
+      return res.send("User Doesn't exist");
+    }
+    let result = {};
+    result._id = user._id;
+    result.username = user.username;
+    result.count = user.count;
+    result.logs = [];
+    user.logs.forEach((log)=>{
+      let temp = {};
+      temp.description = log.description;
+      temp.duration = log.duration;
+      temp.date = log.date.toDateString();
+      result.logs.push(temp);
+    })
+    res.send(result);
+  })
+})
 
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
