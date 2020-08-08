@@ -1,19 +1,83 @@
-const express = require('express')
-const app = express()
-const bodyParser = require('body-parser')
+require('dotenv').config();
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const shortid= require('shortid');
 
-const cors = require('cors')
+const cors = require('cors');
 
-const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-tracker' )
+const User = require('./models/user');
+const Exercise = require('./models/exercise');
 
-app.use(cors())
+const mongoose = require('mongoose');
+mongoose.connect(process.env.MONGODB_URI, { useUnifiedTopology: true, useNewUrlParser: true });
 
-app.use(bodyParser.urlencoded({extended: false}))
-app.use(bodyParser.json())
+app.use(cors());
+
+app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.json());
 
 
 app.use(express.static('public'))
+
+app.post('/api/exercise/new-user', (req, res)=>{
+  const username = req.body.username;
+  let newUser = new User({
+    username: username,
+  })
+
+  //Checking if user already exist or not
+  User.findOne({ username: username }, (err, user)=>{
+    if(err){
+      console.error(err);
+      res.redirect('/');
+    }
+    if(user) return res.send("Username alerady taken");
+    else{
+      // if user doesn't exist then create a new user
+      User.create(newUser, (err, user)=>{
+        console.log("New User Created", user);
+        res.json({ username: user.username, _id: user._id });
+      });
+    }
+  });
+});
+
+app.post('/api/exercise/add', (req, res)=>{
+  let newExercise = new Exercise({
+    description: req.body.description,
+    duration: req.body.duration,
+    date: new Date(req.body.date)
+  })
+  // Checking if the user exist for which new exercise is created
+  User.findById(req.body.userId, (err, user)=>{
+    if(err){
+      console.error(err);
+      return res.redirect('/');
+    }
+    if(!user) return res.send("User Does Not Exist");
+    // Since the user exist we will create a exercise
+    Exercise.create(newExercise, (err, exercise)=>{
+      if(err){
+        console.error(err);
+        res.redirect('/');
+      }
+      console.log("New Exercise Created", exercise);
+      user.exercises.push(exercise);
+      user.save();
+      res.json({
+        _id: user._id,
+        username: user.username,
+        date: exercise.date.toDateString(),
+        duration: exercise.duration,
+        description: exercise.description
+      })
+    })
+  })
+})
+
+
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
