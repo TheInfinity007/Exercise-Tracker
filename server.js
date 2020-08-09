@@ -10,13 +10,13 @@ const User = require('./models/user');
 const Exercise = require('./models/exercise');
 
 const mongoose = require('mongoose');
-mongoose.connect(process.env.MONGODB_URI, { useUnifiedTopology: true, useNewUrlParser: true });
+let url = process.env.MONGODB_URI || 'mongodb://localhost/exerciseTracker';
+mongoose.connect(url, { useUnifiedTopology: true, useNewUrlParser: true });
 
 app.use(cors());
 
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
-
 
 app.use(express.static('public'))
 
@@ -72,14 +72,17 @@ app.post('/api/exercise/add', (req, res)=>{
         date: exercise.date.toDateString(),
         duration: exercise.duration,
         description: exercise.description
-      })
-    })
-  })
-})
+      });
+    });
+  });
+});
 
 app.get('/api/exercise/log', (req, res)=>{
   let userId = req.query.userId;
-  console.log(userId);
+  let from = req.query.from;
+  let to = req.query.to;
+  let limit = req.query.limit;
+  if(limit) limit = parseInt(limit);
   User.findById(userId).populate("logs").exec((err, user)=>{
     if(err){
       console.error(err);
@@ -88,31 +91,79 @@ app.get('/api/exercise/log', (req, res)=>{
     if(!user){
       return res.send("User Doesn't exist");
     }
+
     let result = {};
     result._id = user._id;
     result.username = user.username;
-    result.count = user.count;
+    result.count = 0;
     result.logs = [];
-    user.logs.forEach((log)=>{
-      let temp = {};
-      temp.description = log.description;
-      temp.duration = log.duration;
-      temp.date = log.date.toDateString();
-      result.logs.push(temp);
-    })
-    res.send(result);
+
+    // If there is no query of from and to
+    if(!from && !to){  
+      if((limit && limit > 0) || !limit){
+        user.logs.forEach((log, i)=>{
+          let temp = {};
+          temp.description = log.description;
+          temp.duration = log.duration;
+          temp.date = log.date.toDateString();
+          result.logs.push(temp);
+        }) 
+        return res.send(result);
+      }
+      return res.send(result);
+    }
+
+    // If there exist a from query
+    if(from){
+      from = new Date(from).getTime();
+      // If there is a limit query > 0 or not any query
+      if((limit && limit > 0) || !limit){
+        user.logs.forEach((log, i)=>{
+          if(from > log.date.getTime() || (limit && result.logs.length >= limit)) return;
+          // If there exist a  to query along with the from query
+          if(to){
+            to = new Date(to).getTime();
+            if(to < log.date.getTime() || to < from) return;
+          }
+          let temp = {};
+          temp.description = log.description;
+          temp.duration = log.duration;
+          temp.date = log.date.toDateString();
+          result.logs.push(temp);
+        })
+        result.count = result.logs.length;
+        return res.send(result);
+      }
+      res.send(result);
+    }
+    // If there is a to query without a from query
+    else if(to){
+      to = new Date(to).getTime();
+      if((limit && limit > 0) || !limit){
+        user.logs.forEach((log, i)=>{
+          if(to < log.date.getTime() || (limit && result.logs.length >= limit)) return;
+          let temp = {};
+          temp.description = log.description;
+          temp.duration = log.duration;
+          temp.date = log.date.toDateString();
+          result.logs.push(temp);
+        })
+        return res.send(result);
+      }
+      return res.send(result);
+    }
   })
 })
 
-app.get('/', (req, res) => {
+app.get('/*', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
 
 
 // Not found middleware
 app.use((req, res, next) => {
-  return next({status: 404, message: 'not found'})
-})
+  return next({status: 404, message: 'Page not found'})
+});
 
 // Error Handling middleware
 app.use((err, req, res, next) => {
