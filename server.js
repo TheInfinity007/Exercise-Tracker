@@ -77,6 +77,22 @@ app.post('/api/exercise/add', (req, res)=>{
   });
 });
 
+app.get('/api/exercise/users', (req, res)=>{
+  User.find({}, (err, users)=>{
+    if(err) {
+      console.error(err);
+      res.redirect('/');
+    }
+    console.log(users);
+    if(!users) return res.send("No Users Found");
+    let result = [];
+    users.forEach((user)=>{
+      result.push(user.username);
+    })
+    res.send(result);
+  })
+})
+
 app.get('/api/exercise/log', (req, res)=>{
   let userId = req.query.userId;
   let from = req.query.from;
