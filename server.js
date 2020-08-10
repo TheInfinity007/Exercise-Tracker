@@ -60,7 +60,7 @@ app.post('/api/exercise/add', (req, res)=>{
     Exercise.create(newExercise, (err, exercise)=>{
       if(err){
         console.error(err);
-        res.redirect('/');
+        return res.redirect('/');
       }
       console.log("New Exercise Created", exercise);
       user.logs.push(exercise);
@@ -78,6 +78,7 @@ app.post('/api/exercise/add', (req, res)=>{
 });
 
 app.get('/api/exercise/users', (req, res)=>{
+  console.log("HI");
   User.find({}, (err, users)=>{
     if(err) {
       console.error(err);
@@ -124,6 +125,7 @@ app.get('/api/exercise/log', (req, res)=>{
           temp.date = log.date.toDateString();
           result.logs.push(temp);
         }) 
+        result.count = result.logs.length;
         return res.send(result);
       }
       return res.send(result);
