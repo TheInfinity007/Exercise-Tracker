@@ -10,7 +10,8 @@ const User = require('./models/user');
 const Exercise = require('./models/exercise');
 
 const mongoose = require('mongoose');
-let url = process.env.MONGODB_URI || 'mongodb://localhost/exerciseTracker';
+let url = 'mongodb://localhost/exerciseTracker';
+// let url = process.env.MONGODB_URI;
 mongoose.connect(url, { useUnifiedTopology: true, useNewUrlParser: true });
 
 app.use(cors());
@@ -30,7 +31,7 @@ app.post('/api/exercise/new-user', (req, res)=>{
   User.findOne({ username: username }, (err, user)=>{
     if(err){
       console.error(err);
-      res.redirect('/');
+      return res.redirect('/');
     }
     if(user) return res.send("Username alerady taken");
     else{
@@ -44,11 +45,14 @@ app.post('/api/exercise/new-user', (req, res)=>{
 });
 
 app.post('/api/exercise/add', (req, res)=>{
+  console.log("DAte = ", req.body.date);
   let newExercise = new Exercise({
     description: req.body.description,
-    duration: req.body.duration,
-    date: new Date(req.body.date)
-  })
+    duration: req.body.duration    
+  });
+  if(req.body.date){
+      newExercise.date = new Date(req.body.date)  
+  }
   // Checking if the user exist for which new exercise is created
   User.findById(req.body.userId, (err, user)=>{
     if(err){
@@ -64,7 +68,7 @@ app.post('/api/exercise/add', (req, res)=>{
       }
       console.log("New Exercise Created", exercise);
       user.logs.push(exercise);
-      user.count = user.logs.length;
+      // user.count = user.logs.length;
       user.save();
       res.json({
         _id: user._id,
@@ -113,7 +117,7 @@ app.get('/api/exercise/log', (req, res)=>{
     result._id = user._id;
     result.username = user.username;
     result.count = 0;
-    result.logs = [];
+    result.log = [];
 
     // If there is no query of from and to
     if(!from && !to){  
@@ -123,12 +127,12 @@ app.get('/api/exercise/log', (req, res)=>{
           temp.description = log.description;
           temp.duration = log.duration;
           temp.date = log.date.toDateString();
-          result.logs.push(temp);
+          result.log.push(temp);
         }) 
-        result.count = result.logs.length;
-        return res.send(result);
+        result.count = result.log.length;
+        return res.json(result);
       }
-      return res.send(result);
+      return res.json(result);
     }
 
     // If there exist a from query
@@ -137,7 +141,7 @@ app.get('/api/exercise/log', (req, res)=>{
       // If there is a limit query > 0 or not any query
       if((limit && limit > 0) || !limit){
         user.logs.forEach((log, i)=>{
-          if(from > log.date.getTime() || (limit && result.logs.length >= limit)) return;
+          if(from > log.date.getTime() || (limit && result.log.length >= limit)) return;
           // If there exist a  to query along with the from query
           if(to){
             to = new Date(to).getTime();
@@ -147,28 +151,28 @@ app.get('/api/exercise/log', (req, res)=>{
           temp.description = log.description;
           temp.duration = log.duration;
           temp.date = log.date.toDateString();
-          result.logs.push(temp);
+          result.log.push(temp);
         })
-        result.count = result.logs.length;
-        return res.send(result);
+        result.count = result.log.length;
+        return res.json(result);
       }
-      res.send(result);
+      res.json(result);
     }
     // If there is a to query without a from query
     else if(to){
       to = new Date(to).getTime();
       if((limit && limit > 0) || !limit){
         user.logs.forEach((log, i)=>{
-          if(to < log.date.getTime() || (limit && result.logs.length >= limit)) return;
+          if(to < log.date.getTime() || (limit && result.log.length >= limit)) return;
           let temp = {};
           temp.description = log.description;
           temp.duration = log.duration;
           temp.date = log.date.toDateString();
-          result.logs.push(temp);
+          result.log.push(temp);
         })
-        return res.send(result);
+        return res.json(result);
       }
-      return res.send(result);
+      return res.json(result);
     }
   })
 })
