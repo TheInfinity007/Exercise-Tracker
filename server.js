@@ -10,8 +10,8 @@ const User = require('./models/user');
 const Exercise = require('./models/exercise');
 
 const mongoose = require('mongoose');
-let url = 'mongodb://localhost/exerciseTracker';
-// let url = process.env.MONGODB_URI;
+// let url = 'mongodb://localhost/exerciseTracker';
+let url = process.env.MONGODB_URI;
 mongoose.connect(url, { useUnifiedTopology: true, useNewUrlParser: true });
 
 app.use(cors());
@@ -45,13 +45,14 @@ app.post('/api/exercise/new-user', (req, res)=>{
 });
 
 app.post('/api/exercise/add', (req, res)=>{
-  console.log("DAte = ", req.body.date);
   let newExercise = new Exercise({
     description: req.body.description,
     duration: req.body.duration    
   });
   if(req.body.date){
       newExercise.date = new Date(req.body.date)  
+  }else{
+    newExercise.date = new Date();
   }
   // Checking if the user exist for which new exercise is created
   User.findById(req.body.userId, (err, user)=>{
@@ -82,13 +83,11 @@ app.post('/api/exercise/add', (req, res)=>{
 });
 
 app.get('/api/exercise/users', (req, res)=>{
-  console.log("HI");
   User.find({}, (err, users)=>{
     if(err) {
       console.error(err);
       res.redirect('/');
     }
-    console.log(users);
     if(!users) return res.send("No Users Found");
     let result = [];
     users.forEach((user)=>{
@@ -123,6 +122,7 @@ app.get('/api/exercise/log', (req, res)=>{
     if(!from && !to){  
       if((limit && limit > 0) || !limit){
         user.logs.forEach((log, i)=>{
+          if(limit && result.log.length >= limit) return;
           let temp = {};
           temp.description = log.description;
           temp.duration = log.duration;
